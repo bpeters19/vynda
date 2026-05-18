@@ -1,4 +1,3 @@
-cat > /root/vynda/backend/jobs.py << 'PYEOF'
 import os, sys, asyncio, logging
 from datetime import date
 from dotenv import load_dotenv
@@ -79,5 +78,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-PYEOF
-echo "jobs.py created"
