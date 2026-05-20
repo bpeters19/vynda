@@ -115,8 +115,10 @@ async def transcribe_note(
             "transcript": note_text,
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
+        
 @app.post("/notes/transcribe")
 async def transcribe_note_alias(
     audio: UploadFile = File(...),
