@@ -126,3 +126,39 @@ async def transcribe_note_alias(
     caregiver_id: str = None,
 ):
     return await transcribe_note(audio=audio, patient_id=patient_id, caregiver_id=caregiver_id)
+
+@app.post("/api/patients/import")
+async def import_patients(patients: list[dict]):
+    try:
+        from supabase import create_client
+        sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_KEY"))
+        
+        agency = sb.table("agencies").select("id").execute()
+        agency_id = agency.data[0]["id"] if agency.data else None
+
+        inserted = 0
+        errors = []
+        for pt in patients:
+            try:
+                sb.table("patients").insert({
+                    "agency_id": agency_id,
+                    "first_name": pt.get("first_name", ""),
+                    "last_name": pt.get("last_name", ""),
+                    "date_of_birth": pt.get("date_of_birth") or None,
+                    "city": pt.get("city") or None,
+                    "state": pt.get("state") or None,
+                    "primary_payor_name": pt.get("primary_payor_name") or None,
+                    "primary_icd10": pt.get("primary_icd10") or None,
+                    "medical_record_number": pt.get("medical_record_number") or None,
+                }).execute()
+                inserted += 1
+            except Exception as e:
+                errors.append(str(e))
+
+        return {
+            "success": True,
+            "inserted": inserted,
+            "errors": errors,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
