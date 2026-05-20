@@ -116,3 +116,11 @@ async def transcribe_note(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/notes/transcribe")
+async def transcribe_note_alias(
+    audio: UploadFile = File(...),
+    patient_id: str = None,
+    caregiver_id: str = None,
+):
+    return await transcribe_note(audio=audio, patient_id=patient_id, caregiver_id=caregiver_id)
