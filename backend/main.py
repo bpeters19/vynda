@@ -6,6 +6,9 @@ from datetime import date
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+import tempfile
+from fastapi import UploadFile, File
+from openai import OpenAI
 load_dotenv()
 
 app = FastAPI(title="Vynda API", version="1.0.0")
@@ -61,5 +64,54 @@ async def trigger_sync():
         from sync import run_sync
         await run_sync()
         return {"success": True, "message": "Sync completed"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+        @app.post("/api/notes/transcribe")
+async def transcribe_note(
+    audio: UploadFile = File(...),
+    patient_id: str = None,
+    caregiver_id: str = None,
+):
+    try:
+        from supabase import create_client
+        sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_KEY"))
+        
+        # Get agency
+        agency = sb.table("agencies").select("id").execute()
+        agency_id = agency.data[0]["id"] if agency.data else None
+
+        # Save audio to temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{audio.filename.split('.')[-1]}") as tmp:
+            content = await audio.read()
+            tmp.write(content)
+            tmp_path = tmp.name
+
+        # Transcribe with Whisper
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        with open(tmp_path, "rb") as f:
+            transcript = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=f,
+            )
+        
+        note_text = transcript.text
+
+        # Save to Supabase
+        note = sb.table("visit_notes").insert({
+            "agency_id": agency_id,
+            "patient_id": patient_id,
+            "caregiver_id": caregiver_id,
+            "note_text": note_text,
+        }).execute()
+
+        # Cleanup temp file
+        import os as _os
+        _os.unlink(tmp_path)
+
+        return {
+            "success": True,
+            "note_id": note.data[0]["id"] if note.data else None,
+            "transcript": note_text,
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
