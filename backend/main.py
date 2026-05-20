@@ -67,7 +67,7 @@ async def trigger_sync():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
         
-        @app.post("/api/notes/transcribe")
+@app.post("/api/notes/transcribe")
 async def transcribe_note(
     audio: UploadFile = File(...),
     patient_id: str = None,
